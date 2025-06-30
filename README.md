@@ -16,11 +16,24 @@ A web server designed to facilitate quick and easy interaction with the Figma pl
 1. Download the `.exe` file from the [Releases](../../releases) page
 2. Launch the web server using the command:
 
+   **Manual Launch:**
+
    ```bash
    ./zephyr_web_server.exe D:\defold_projects\Futdits
    ```
 
    > Replace the second argument with your Defold project path
+
+   **Double-Click Launch:**
+
+   - Use the included batch script from the releases [Releases](../../releases) for easy double-click execution
+   - No command line required!
+
+   **Auto-Start with Windows:**
+
+   - Set up automatic startup using Windows Task Scheduler
+   - Server starts automatically when you log into Windows
+   - No manual intervention needed
 
 3. In Figma, click the **"Send to Web Server"** button in the plugin interface
 4. ✅ All required files will automatically save to their designated directories
