@@ -43,7 +43,7 @@ app.get('/health', (req, res) => {
 // Add root endpoint for testing
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'Zephyr Web Server is running',
+    message: 'Defigma Web Server is running',
     endpoints: {
       health: '/health',
       upload: '/upload'

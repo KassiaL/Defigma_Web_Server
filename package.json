@@ -1,5 +1,5 @@
 {
-  "name": "zephyr_web_server",
+  "name": "defigma_web_server",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
