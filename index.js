@@ -70,23 +70,70 @@ app.post('/upload', upload.array('files'), async (req, res) => {
       console.log('Created directory:', target_directory)
     }
 
-    if (!req.files || req.files.length === 0) {
-      console.log('Error: no files uploaded')
-      return res.status(400).json({ error: 'no files uploaded' })
+    let files_to_delete = req.body.files_to_delete
+    if (typeof files_to_delete === 'string') {
+      try {
+        const parsed = JSON.parse(files_to_delete)
+        files_to_delete = Array.isArray(parsed) ? parsed : (files_to_delete.includes(',') ? files_to_delete.split(',').map(s => s.trim()).filter(Boolean) : (files_to_delete.trim() !== '' ? [files_to_delete.trim()] : []))
+      } catch (e) {
+        files_to_delete = files_to_delete.includes(',') ? files_to_delete.split(',').map(s => s.trim()).filter(Boolean) : (files_to_delete.trim() !== '' ? [files_to_delete.trim()] : [])
+      }
+    } else if (!Array.isArray(files_to_delete)) {
+      files_to_delete = []
+    }
+    if (Array.isArray(files_to_delete)) {
+      files_to_delete = files_to_delete.map(x => (typeof x === 'string' ? x : String(x))).map(s => s.trim()).filter(Boolean)
+    }
+    const has_uploads = req.files && req.files.length > 0
+    const has_deletions = Array.isArray(files_to_delete) && files_to_delete.length > 0
+
+    if (!has_uploads && !has_deletions) {
+      console.log('Error: nothing to process')
+      return res.status(400).json({ error: 'no files uploaded and no files_to_delete provided' })
     }
 
     const saved_files = []
-    for (const file of req.files) {
-      const file_path = path.join(target_directory, file.originalname)
-      fs.writeFileSync(file_path, file.buffer)
-      saved_files.push(file.originalname)
+    if (has_uploads) {
+      for (const file of req.files) {
+        const file_path = path.join(target_directory, file.originalname)
+        fs.writeFileSync(file_path, file.buffer)
+        saved_files.push(file.originalname)
+      }
+    }
+
+    const is_safe_name = name => !name.includes('..') && !name.includes('/') && !name.includes('\\')
+    const deleted_files = []
+    const failed_deletions = []
+    const invalid_filenames = []
+    if (has_deletions) {
+      for (const name of files_to_delete) {
+        if (!is_safe_name(name)) {
+          invalid_filenames.push(name)
+          continue
+        }
+        const delete_path = path.join(target_directory, name)
+        try {
+          if (fs.existsSync(delete_path)) {
+            fs.unlinkSync(delete_path)
+            deleted_files.push(name)
+          } else {
+            failed_deletions.push(name)
+          }
+        } catch (e) {
+          failed_deletions.push(name)
+        }
+      }
     }
 
     const response_data = { 
-      message: 'files uploaded successfully',
+      message: 'files processed successfully',
       folder: folder_path,
       files: saved_files,
-      count: saved_files.length
+      count: saved_files.length,
+      deleted_files: deleted_files,
+      deleted_count: deleted_files.length,
+      failed_deletions: failed_deletions,
+      invalid_filenames: invalid_filenames
     }
     
     console.log('Upload successful:', response_data)
