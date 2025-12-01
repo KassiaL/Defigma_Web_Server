@@ -1,13 +1,16 @@
 const path = require('path')
 const fs = require('fs')
-const https = require('https')
 const express = require('express')
 const multer = require('multer')
+const { spawn } = require('child_process')
 
 let projectPath = process.argv[2]
 if (!projectPath) projectPath = process.env.PROJECT_PATH
 if (!projectPath) projectPath = process.cwd()
-	
+
+let pythonGuiScriptPath = process.argv[3]
+if (!pythonGuiScriptPath) pythonGuiScriptPath = process.env.PYTHON_GUI_SCRIPT
+
 if (!projectPath) {
 	return
   console.error('project path is not specified')
@@ -47,7 +50,8 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/health',
       upload: '/upload'
-    }
+    },
+    python_gui_script: pythonGuiScriptPath || null
   })
 })
 
@@ -93,11 +97,18 @@ app.post('/upload', upload.array('files'), async (req, res) => {
     }
 
     const saved_files = []
+    const saved_gui_files = []
     if (has_uploads) {
       for (const file of req.files) {
         const file_path = path.join(target_directory, file.originalname)
         fs.writeFileSync(file_path, file.buffer)
         saved_files.push(file.originalname)
+        if (file.originalname.toLowerCase().endsWith('.gui')) {
+          saved_gui_files.push({
+            name: file.originalname,
+            full_path: file_path
+          })
+        }
       }
     }
 
@@ -123,6 +134,24 @@ app.post('/upload', upload.array('files'), async (req, res) => {
           failed_deletions.push(name)
         }
       }
+    }
+
+    if (pythonGuiScriptPath && saved_gui_files.length > 0) {
+      for (const gui_file of saved_gui_files) {
+        const full_path = gui_file.full_path
+        const relative_path = path.relative(projectPath, full_path)
+        const child = spawn('python3', [pythonGuiScriptPath, relative_path], {
+          stdio: 'inherit'
+        })
+        child.on('error', e => {
+          console.error('failed to run python gui script for file', relative_path, e)
+        })
+        child.on('exit', code => {
+          console.log('python gui script finished for file', relative_path, 'with code', code)
+        })
+      }
+    } else if (!pythonGuiScriptPath && saved_gui_files.length > 0) {
+      
     }
 
     const response_data = { 
