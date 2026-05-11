@@ -8,13 +8,19 @@ let projectPath = process.argv[2]
 if (!projectPath) projectPath = process.env.PROJECT_PATH
 if (!projectPath) projectPath = process.cwd()
 
-let pythonGuiScriptPath = process.argv[3]
-if (!pythonGuiScriptPath) pythonGuiScriptPath = process.env.PYTHON_GUI_SCRIPT
+let pythonGuiCommand = process.argv[3]
+if (!pythonGuiCommand) pythonGuiCommand = process.env.PYTHON_GUI_COMMAND
+if (!pythonGuiCommand) pythonGuiCommand = process.env.PYTHON_GUI_SCRIPT
+if (typeof pythonGuiCommand === 'string') pythonGuiCommand = pythonGuiCommand.trim()
+if (pythonGuiCommand === '') pythonGuiCommand = null
+const guiCommandShell = process.env.GUI_COMMAND_SHELL || 'bash'
+
+const quoteShellArg = value => `'${String(value).replace(/'/g, `'\\''`)}'`
 
 if (!projectPath) {
 	return
-  console.error('project path is not specified')
-  process.exit(1)
+	console.error('project path is not specified')
+	process.exit(1)
 }
 
 console.log('files will be saved in:', path.resolve(projectPath))
@@ -24,13 +30,13 @@ const port = 16830
 
 // Add manual CORS middleware
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-   res.setHeader('Access-Control-Allow-Headers', 'origin,X-Requested-With,Content-Type,Accept,Authorization');
-  if(req.method === 'OPTIONS'){
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, PUT, DELETE');
-    return res.status(204).send();
-}
-next()
+	res.setHeader('Access-Control-Allow-Origin', '*');
+	res.setHeader('Access-Control-Allow-Headers', 'origin,X-Requested-With,Content-Type,Accept,Authorization');
+	if (req.method === 'OPTIONS') {
+		res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, PUT, DELETE');
+		return res.status(204).send();
+	}
+	next()
 })
 
 const storage = multer.memoryStorage()
@@ -40,144 +46,147 @@ app.use(express.json())
 
 // Add health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+	res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
 // Add root endpoint for testing
 app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Defigma Web Server is running',
-    endpoints: {
-      health: '/health',
-      upload: '/upload'
-    },
-    python_gui_script: pythonGuiScriptPath || null
-  })
+		res.json({
+			message: 'Defigma Web Server is running',
+			endpoints: {
+				health: '/health',
+				upload: '/upload'
+			},
+			python_gui_command: pythonGuiCommand || null,
+			gui_command_shell: guiCommandShell
+		})
 })
 
 app.post('/upload', upload.array('files'), async (req, res) => {
-  try {
-    console.log('Upload request received')
-    console.log('Files count:', req.files ? req.files.length : 0)
-    
-    const folder_path = req.body.folder_path
-    if (!folder_path) {
-      console.log('Error: folder_name is missing')
-      return res.status(400).json({ error: 'folder_name is required' })
-    }
+	try {
+		console.log('Upload request received')
+		console.log('Files count:', req.files ? req.files.length : 0)
 
-    const target_directory = path.join(projectPath, folder_path)
-    console.log('Target directory:', target_directory)
-    
-    if (!fs.existsSync(target_directory)) {
-      fs.mkdirSync(target_directory, { recursive: true })
-      console.log('Created directory:', target_directory)
-    }
+		const folder_path = req.body.folder_path
+		if (!folder_path) {
+			console.log('Error: folder_name is missing')
+			return res.status(400).json({ error: 'folder_name is required' })
+		}
 
-    let files_to_delete = req.body.files_to_delete
-    if (typeof files_to_delete === 'string') {
-      try {
-        const parsed = JSON.parse(files_to_delete)
-        files_to_delete = Array.isArray(parsed) ? parsed : (files_to_delete.includes(',') ? files_to_delete.split(',').map(s => s.trim()).filter(Boolean) : (files_to_delete.trim() !== '' ? [files_to_delete.trim()] : []))
-      } catch (e) {
-        files_to_delete = files_to_delete.includes(',') ? files_to_delete.split(',').map(s => s.trim()).filter(Boolean) : (files_to_delete.trim() !== '' ? [files_to_delete.trim()] : [])
-      }
-    } else if (!Array.isArray(files_to_delete)) {
-      files_to_delete = []
-    }
-    if (Array.isArray(files_to_delete)) {
-      files_to_delete = files_to_delete.map(x => (typeof x === 'string' ? x : String(x))).map(s => s.trim()).filter(Boolean)
-    }
-    const has_uploads = req.files && req.files.length > 0
-    const has_deletions = Array.isArray(files_to_delete) && files_to_delete.length > 0
+		const target_directory = path.join(projectPath, folder_path)
+		console.log('Target directory:', target_directory)
 
-    if (!has_uploads && !has_deletions) {
-      console.log('Error: nothing to process')
-      return res.status(400).json({ error: 'no files uploaded and no files_to_delete provided' })
-    }
+		if (!fs.existsSync(target_directory)) {
+			fs.mkdirSync(target_directory, { recursive: true })
+			console.log('Created directory:', target_directory)
+		}
 
-    const saved_files = []
-    const saved_gui_files = []
-    if (has_uploads) {
-      for (const file of req.files) {
-        const file_path = path.join(target_directory, file.originalname)
-        fs.writeFileSync(file_path, file.buffer)
-        saved_files.push(file.originalname)
-        if (file.originalname.toLowerCase().endsWith('.gui')) {
-          saved_gui_files.push({
-            name: file.originalname,
-            full_path: file_path
-          })
-        }
-      }
-    }
+		let files_to_delete = req.body.files_to_delete
+		if (typeof files_to_delete === 'string') {
+			try {
+				const parsed = JSON.parse(files_to_delete)
+				files_to_delete = Array.isArray(parsed) ? parsed : (files_to_delete.includes(',') ? files_to_delete.split(',').map(s => s.trim()).filter(Boolean) : (files_to_delete.trim() !== '' ? [files_to_delete.trim()] : []))
+			} catch (e) {
+				files_to_delete = files_to_delete.includes(',') ? files_to_delete.split(',').map(s => s.trim()).filter(Boolean) : (files_to_delete.trim() !== '' ? [files_to_delete.trim()] : [])
+			}
+		} else if (!Array.isArray(files_to_delete)) {
+			files_to_delete = []
+		}
+		if (Array.isArray(files_to_delete)) {
+			files_to_delete = files_to_delete.map(x => (typeof x === 'string' ? x : String(x))).map(s => s.trim()).filter(Boolean)
+		}
+		const has_uploads = req.files && req.files.length > 0
+		const has_deletions = Array.isArray(files_to_delete) && files_to_delete.length > 0
 
-    const is_safe_name = name => !name.includes('..') && !name.includes('/') && !name.includes('\\')
-    const deleted_files = []
-    const failed_deletions = []
-    const invalid_filenames = []
-    if (has_deletions) {
-      for (const name of files_to_delete) {
-        if (!is_safe_name(name)) {
-          invalid_filenames.push(name)
-          continue
-        }
-        const delete_path = path.join(target_directory, name)
-        try {
-          if (fs.existsSync(delete_path)) {
-            fs.unlinkSync(delete_path)
-            deleted_files.push(name)
-          } else {
-            failed_deletions.push(name)
-          }
-        } catch (e) {
-          failed_deletions.push(name)
-        }
-      }
-    }
+		if (!has_uploads && !has_deletions) {
+			console.log('Error: nothing to process')
+			return res.status(400).json({ error: 'no files uploaded and no files_to_delete provided' })
+		}
 
-    if (pythonGuiScriptPath && saved_gui_files.length > 0) {
-      for (const gui_file of saved_gui_files) {
-        const full_path = gui_file.full_path
-        const relative_path = path.relative(projectPath, full_path)
-        const child = spawn('python3', [pythonGuiScriptPath, relative_path], {
-          stdio: 'inherit'
-        })
-        child.on('error', e => {
-          console.error('failed to run python gui script for file', relative_path, e)
-        })
-        child.on('exit', code => {
-          console.log('python gui script finished for file', relative_path, 'with code', code)
-        })
-      }
-    } else if (!pythonGuiScriptPath && saved_gui_files.length > 0) {
-      
-    }
+		const saved_files = []
+		const saved_command_files = []
+		if (has_uploads) {
+			for (const file of req.files) {
+				const file_path = path.join(target_directory, file.originalname)
+				fs.writeFileSync(file_path, file.buffer)
+				saved_files.push(file.originalname)
+				const lower_name = file.originalname.toLowerCase()
+				if (lower_name.endsWith('.gui') || lower_name.endsWith('.atlas')) {
+					saved_command_files.push({
+						name: file.originalname,
+						full_path: file_path
+					})
+				}
+			}
+		}
 
-    const response_data = { 
-      message: 'files processed successfully',
-      folder: folder_path,
-      files: saved_files,
-      count: saved_files.length,
-      deleted_files: deleted_files,
-      deleted_count: deleted_files.length,
-      failed_deletions: failed_deletions,
-      invalid_filenames: invalid_filenames
-    }
-    
-    console.log('Upload successful:', response_data)
-    res.json(response_data)
+		const is_safe_name = name => !name.includes('..') && !name.includes('/') && !name.includes('\\')
+		const deleted_files = []
+		const failed_deletions = []
+		const invalid_filenames = []
+		if (has_deletions) {
+			for (const name of files_to_delete) {
+				if (!is_safe_name(name)) {
+					invalid_filenames.push(name)
+					continue
+				}
+				const delete_path = path.join(target_directory, name)
+				try {
+					if (fs.existsSync(delete_path)) {
+						fs.unlinkSync(delete_path)
+						deleted_files.push(name)
+					} else {
+						failed_deletions.push(name)
+					}
+				} catch (e) {
+					failed_deletions.push(name)
+				}
+			}
+		}
 
-  } catch (error) {
-    console.error('upload error:', error)
-    res.status(500).json({ error: 'failed to upload files', details: error.message })
-  }
+		if (pythonGuiCommand && saved_command_files.length > 0) {
+			for (const command_file of saved_command_files) {
+				const full_path = command_file.full_path
+				const relative_path = path.relative(projectPath, full_path)
+				const child = spawn(guiCommandShell, ['-lc', `${pythonGuiCommand} ${quoteShellArg(relative_path)}`], {
+					cwd: projectPath,
+					stdio: 'inherit'
+				})
+				child.on('error', e => {
+					console.error('failed to run python gui command for file', relative_path, e)
+				})
+				child.on('exit', code => {
+					console.log('python gui command finished for file', relative_path, 'with code', code)
+				})
+			}
+		} else if (!pythonGuiCommand && saved_command_files.length > 0) {
+			console.warn('PYTHON_GUI_COMMAND not set; skipping processing for uploaded .gui and .atlas files')
+		}
+
+		const response_data = {
+			message: 'files processed successfully',
+			folder: folder_path,
+			files: saved_files,
+			count: saved_files.length,
+			deleted_files: deleted_files,
+			deleted_count: deleted_files.length,
+			failed_deletions: failed_deletions,
+			invalid_filenames: invalid_filenames
+		}
+
+		console.log('Upload successful:', response_data)
+		res.json(response_data)
+
+	} catch (error) {
+		console.error('upload error:', error)
+		res.status(500).json({ error: 'failed to upload files', details: error.message })
+	}
 })
 
 // Bind to all interfaces, not just localhost
 app.listen(port, '0.0.0.0', () => {
-  console.log(`server listening on all interfaces at port ${port}`)
-  console.log(`health check: http://localhost:${port}/health`)
-  console.log(`upload endpoint: http://localhost:${port}/upload`)
-  console.log('server is ready to accept connections')
+	console.log(`server listening on all interfaces at port ${port}`)
+	console.log(`health check: http://localhost:${port}/health`)
+	console.log(`upload endpoint: http://localhost:${port}/upload`)
+	console.log('server is ready to accept connections')
 })
