@@ -23,13 +23,15 @@ Use atlas sections for reusable graphics, then build screens from instances of t
 
 2. Put graphics inside the atlas section.
 
-   Direct child components of the section become atlas images. Frames and image rectangles placed directly in the section are converted to components before export.
+   Direct child components of the section become atlas images. Frames and image rectangles placed directly in the section are converted to components before export. Component sets are not wrapped: every variant is exported as a separate atlas image.
 
    The component name becomes the atlas image name. For example, component `button_green` in section `menu` is referenced from GUI as:
 
    ```text
    menu/button_green
    ```
+
+   For component sets, the exported image name is `<component_set_name>_<variant_suffix>`. For example, set `key_green` with variants `key_green` and `key_straight_green` exports `key_green_key_green` and `key_green_key_straight_green`.
 
 3. Build a screen as a Figma frame.
 
@@ -442,9 +444,15 @@ Text export supports:
 - solid text stroke as Defold text outline;
 - mixed text runs split into several Defold text nodes when possible.
 
-## TYPE_TEMPLATE
+## Templates
 
-Use master components with `TYPE` set to `TYPE_TEMPLATE` for reusable Defold GUI template nodes.
+Use master component metadata to mark reusable Defold GUI template nodes:
+
+```json
+{"is_template":true}
+```
+
+The metadata can be placed on the master component itself or on a JSON metadata helper node inside the master component.
 
 Template instance metadata can define where the referenced `.gui` is located:
 
@@ -655,6 +663,7 @@ Plugin behavior:
 {"template_default_size":{"x":320,"y":180}}
 ```
 
+- `is_template`
 - `path_to_screen`
 - `template_default_size`
 - `need_export`

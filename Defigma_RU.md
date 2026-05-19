@@ -23,13 +23,15 @@ Defigma экспортирует графику и экраны из Figma в GU
 
 2. Положите графику внутрь atlas section.
 
-   Компоненты, которые лежат прямыми детьми section, становятся изображениями атласа. Фреймы и image rectangles, размещенные прямо внутри section, перед экспортом конвертируются в компоненты.
+   Компоненты, которые лежат прямыми детьми section, становятся изображениями атласа. Фреймы и image rectangles, размещенные прямо внутри section, перед экспортом конвертируются в компоненты. Component sets не оборачиваются: каждый variant экспортируется как отдельное atlas image.
 
    Имя компонента становится именем изображения в атласе. Например, компонент `button_green` в section `menu` будет использоваться в GUI как:
 
    ```text
    menu/button_green
    ```
+
+   Для component sets имя exported image строится как `<component_set_name>_<variant_suffix>`. Например, set `key_green` с variants `key_green` и `key_straight_green` экспортирует `key_green_key_green` и `key_green_key_straight_green`.
 
 3. Соберите экран как Figma frame.
 
@@ -442,9 +444,15 @@ Text export поддерживает:
 - solid text stroke как Defold text outline;
 - mixed text runs, которые разбиваются на несколько Defold text nodes, когда это возможно.
 
-## TYPE_TEMPLATE
+## Templates
 
-Используйте master components с `TYPE`, установленным в `TYPE_TEMPLATE`, для переиспользуемых Defold GUI template nodes.
+Используйте metadata master component, чтобы пометить переиспользуемые Defold GUI template nodes:
+
+```json
+{"is_template":true}
+```
+
+Metadata можно разместить на самом master component или на JSON metadata helper node внутри master component.
 
 Metadata template instance может задать, где находится referenced `.gui`:
 
@@ -655,6 +663,7 @@ Layouts позволяют одному exported `.gui` содержать Defau
 {"template_default_size":{"x":320,"y":180}}
 ```
 
+- `is_template`
 - `path_to_screen`
 - `template_default_size`
 - `need_export`
