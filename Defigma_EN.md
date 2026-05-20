@@ -52,8 +52,7 @@ Use atlas sections for reusable graphics, then build screens from instances of t
    - selected `Section`: exports atlas images and `.atlas`;
    - selected `Frame`, exportable component, or variant component: exports a `.gui`;
    - selected component set: exports one `.gui` per variant component;
-   - multiple sections or multiple screens/components/component sets: batch export;
-   - by default the plugin uploads files to the Defigma web server at `http://localhost:16830/upload`.
+   - multiple sections or multiple screens/components/component sets: batch export.
 
 ## Metadata Basics
 
@@ -171,7 +170,7 @@ Use direct metadata to override common Defold node fields. Place the helper insi
 Texture override:
 
 ```json
-{"texture":"menu/button_green"}
+{"texture":"/assets/textures/confetti/confetti.atlas"}
 ```
 
 Color override:
@@ -264,6 +263,7 @@ Values:
 - `"x"`: scale only X.
 - `"y"`: scale only Y.
 - `"xy"`: scale both axes.
+- `"max"`: use one proportional scale for both axes. The scale is the largest value that keeps at least one base size axis equal to the atlas size; the other base size axis grows to preserve the instance size.
 
 ## Native Figma Features
 
@@ -344,15 +344,15 @@ You can also force a node to `TYPE_PIE` with metadata:
 Optional pie fields:
 
 ```json
-{"innerRadius":24}
+{"inner_radius":24}
 ```
 
 ```json
-{"perimeterVertices":80}
+{"perimeter_vertices":80}
 ```
 
 ```json
-{"pieFillAngle":270}
+{"pie_fill_angle":270}
 ```
 
 ## Duplicate Node Names
@@ -418,7 +418,7 @@ Layer order:
 Extra atlas/texture references:
 
 ```json
-{"textures":["menu/button_ok"]}
+{"textures":["/assets/textures/dynamic_images/jigsaw/previews/previews.atlas","/assets/textures/dynamic_images/slidepuzzle/previews/previews.atlas"]}
 ```
 
 `textures` must be an array and must be declared on a direct child of the exported screen or layout root.
@@ -490,8 +490,6 @@ To exclude a template node:
 Template `.gui` exports always use an empty script path, even when `auto_script` is enabled globally.
 
 Template component sets can be exported directly. Each variant component is exported as a separate template `.gui`. Variant component file names use the same naming as atlas component-set flipbooks: `<component_set_name>_<variant_suffix>`, or only `<variant_suffix>` when the component set is named `_` or `-`. Template references use the same resolved name in `path_to_screen`.
-
-When a template instance changes exported child nodes compared to the master component, Defigma writes Defold `template_node_child` override nodes into the parent `.gui`. The existing template root transform override is still exported separately. Child overrides can include changed transform, size, color, texture, font, line break, anchors, pivot, clipping, alpha, visibility, material, and related node fields.
 
 Parent screen `_defigma.lua` data does not include gradient or shadow entries for nodes that are exported inside referenced template `.gui` files; those entries belong to the template export itself.
 
@@ -664,9 +662,9 @@ Plugin behavior:
 
 - `type`
 - `outerBounds`
-- `innerRadius`
-- `perimeterVertices`
-- `pieFillAngle`
+- `inner_radius`
+- `perimeter_vertices`
+- `pie_fill_angle`
 
 ### Templates
 

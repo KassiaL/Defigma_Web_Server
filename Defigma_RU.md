@@ -52,8 +52,7 @@ Defigma экспортирует графику и экраны из Figma в GU
    - выбранный `Section`: экспортирует atlas images и `.atlas`;
    - выбранный `Frame`, exportable component или variant component: экспортирует `.gui`;
    - выбранный component set: экспортирует по одному `.gui` на каждый variant component;
-   - несколько sections или несколько screens/components/component sets: batch export;
-   - по умолчанию plugin загружает файлы в Defigma web server по адресу `http://localhost:16830/upload`.
+   - несколько sections или несколько screens/components/component sets: batch export.
 
 ## Metadata Basics
 
@@ -171,7 +170,7 @@ Metadata helper nodes внутри section тоже могут добавлят�
 Texture override:
 
 ```json
-{"texture":"menu/button_green"}
+{"texture":"/assets/textures/confetti/confetti.atlas"}
 ```
 
 Color override:
@@ -264,6 +263,7 @@ Defigma создает invisible parent node с именем `<node_id><anchor>`
 - `"x"`: scale только по X.
 - `"y"`: scale только по Y.
 - `"xy"`: scale по обеим осям.
+- `"max"`: использовать один пропорциональный scale для обеих осей. Scale будет максимальным значением, при котором хотя бы одна базовая ось size равна atlas size; другая базовая ось увеличивается, чтобы сохранить размер instance.
 
 ## Native Figma Features
 
@@ -344,15 +344,15 @@ Ellipses с Figma arc data могут экспортироваться как De
 Опциональные pie fields:
 
 ```json
-{"innerRadius":24}
+{"inner_radius":24}
 ```
 
 ```json
-{"perimeterVertices":80}
+{"perimeter_vertices":80}
 ```
 
 ```json
-{"pieFillAngle":270}
+{"pie_fill_angle":270}
 ```
 
 ## Duplicate Node Names
@@ -418,7 +418,7 @@ Layer order:
 Extra atlas/texture references:
 
 ```json
-{"textures":["menu/button_ok"]}
+{"textures":["/assets/textures/dynamic_images/jigsaw/previews/previews.atlas","/assets/textures/dynamic_images/slidepuzzle/previews/previews.atlas"]}
 ```
 
 `textures` должен быть array и должен быть объявлен на direct child экспортируемого screen или layout root.
@@ -490,8 +490,6 @@ Metadata template instance может задать, где находится re
 Template `.gui` exports всегда используют пустой script path, даже если глобально включен `auto_script`.
 
 Template component sets можно экспортировать напрямую. Каждый variant component экспортируется как отдельный template `.gui`. Имена файлов variant components строятся так же, как flipbooks у atlas component sets: `<component_set_name>_<variant_suffix>` или только `<variant_suffix>`, если component set назван `_` или `-`. Template references используют то же resolved name в `path_to_screen`.
-
-Когда template instance меняет exported child nodes по сравнению с master component, Defigma записывает Defold `template_node_child` override nodes в родительский `.gui`. Существующий override transform для template root продолжает экспортироваться отдельно. Child overrides могут включать измененные transform, size, color, texture, font, line break, anchors, pivot, clipping, alpha, visibility, material и связанные поля nodes.
 
 В `_defigma.lua` родительского экрана не попадают gradient/shadow entries для нод, которые экспортируются внутри referenced template `.gui`; такие entries принадлежат самому template export.
 
@@ -664,9 +662,9 @@ Layouts позволяют одному exported `.gui` содержать Defau
 
 - `type`
 - `outerBounds`
-- `innerRadius`
-- `perimeterVertices`
-- `pieFillAngle`
+- `inner_radius`
+- `perimeter_vertices`
+- `pie_fill_angle`
 
 ### Templates
 
