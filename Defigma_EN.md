@@ -6,7 +6,7 @@ The main idea:
 
 - in Defold, images live in `.atlas` files;
 - in Figma, one atlas is one `Section`;
-- a screen is a `Frame`;
+- a screen is a `Frame`, exportable component, variant component, or component set of exportable variants;
 - screen nodes reference images from atlas sections.
 
 Use atlas sections for reusable graphics, then build screens from instances of those graphics plus native Figma text, frames, rectangles, ellipses, and editable UI shapes.
@@ -31,7 +31,9 @@ Use atlas sections for reusable graphics, then build screens from instances of t
    menu/button_green
    ```
 
-   For component sets, the exported image name is `<component_set_name>_<variant_suffix>`. For example, set `key_green` with variants `key_green` and `key_straight_green` exports `key_green_key_green` and `key_green_key_straight_green`.
+   For component sets, the exported image name is `<component_set_name>_<variant_suffix>`. For example, set `key_green` with variants `key_green` and `key_straight_green` exports `key_green_key_green` and `key_green_key_straight_green`. If the component set is named `_` or `-`, only `<variant_suffix>` is used.
+
+   If a variant component inside an atlas section has a plain name without a property assignment, Defigma normalizes it before export by adding `Property 1=`.
 
 3. Build a screen as a Figma frame.
 
@@ -45,11 +47,12 @@ Use atlas sections for reusable graphics, then build screens from instances of t
    {"pivot":"PIVOT_S"}
    ```
 
-5. Select a section or a screen frame and run the plugin.
+5. Select a section, a screen frame, an exportable component, or a component set and run the plugin.
 
    - selected `Section`: exports atlas images and `.atlas`;
-   - selected `Frame`: exports a `.gui`;
-   - multiple sections or multiple frames: batch export;
+   - selected `Frame`, exportable component, or variant component: exports a `.gui`;
+   - selected component set: exports one `.gui` per variant component;
+   - multiple sections or multiple screens/components/component sets: batch export;
    - by default the plugin uploads files to the Defigma web server at `http://localhost:16830/upload`.
 
 ## Metadata Basics
@@ -483,6 +486,14 @@ To exclude a template node:
 ```json
 {"need_export":false}
 ```
+
+Template `.gui` exports always use an empty script path, even when `auto_script` is enabled globally.
+
+Template component sets can be exported directly. Each variant component is exported as a separate template `.gui`. Variant component file names use the same naming as atlas component-set flipbooks: `<component_set_name>_<variant_suffix>`, or only `<variant_suffix>` when the component set is named `_` or `-`. Template references use the same resolved name in `path_to_screen`.
+
+When a template instance changes exported child nodes compared to the master component, Defigma writes Defold `template_node_child` override nodes into the parent `.gui`. The existing template root transform override is still exported separately. Child overrides can include changed transform, size, color, texture, font, line break, anchors, pivot, clipping, alpha, visibility, material, and related node fields.
+
+Parent screen `_defigma.lua` data does not include gradient or shadow entries for nodes that are exported inside referenced template `.gui` files; those entries belong to the template export itself.
 
 ## Practical Notes
 

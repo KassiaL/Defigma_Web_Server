@@ -6,7 +6,7 @@ Defigma экспортирует графику и экраны из Figma в GU
 
 - в Defold изображения лежат в `.atlas` файлах;
 - в Figma один атлас - это одна `Section`;
-- экран - это `Frame`;
+- экран - это `Frame`, exportable component, variant component или component set из exportable variants;
 - ноды экрана ссылаются на изображения из atlas sections.
 
 Используйте atlas sections для переиспользуемой графики, а затем собирайте экраны из инстансов этой графики, а также из нативных текстов Figma, фреймов, прямоугольников, эллипсов и редактируемых UI-форм.
@@ -31,7 +31,9 @@ Defigma экспортирует графику и экраны из Figma в GU
    menu/button_green
    ```
 
-   Для component sets имя exported image строится как `<component_set_name>_<variant_suffix>`. Например, set `key_green` с variants `key_green` и `key_straight_green` экспортирует `key_green_key_green` и `key_green_key_straight_green`.
+   Для component sets имя exported image строится как `<component_set_name>_<variant_suffix>`. Например, set `key_green` с variants `key_green` и `key_straight_green` экспортирует `key_green_key_green` и `key_green_key_straight_green`. Если component set назван `_` или `-`, используется только `<variant_suffix>`.
+
+   Если variant component внутри atlas section назван простым именем без property assignment, Defigma перед экспортом нормализует его, добавляя `Property 1=`.
 
 3. Соберите экран как Figma frame.
 
@@ -45,11 +47,12 @@ Defigma экспортирует графику и экраны из Figma в GU
    {"pivot":"PIVOT_S"}
    ```
 
-5. Выберите section или frame экрана и запустите plugin.
+5. Выберите section, frame экрана, exportable component или component set и запустите plugin.
 
    - выбранный `Section`: экспортирует atlas images и `.atlas`;
-   - выбранный `Frame`: экспортирует `.gui`;
-   - несколько sections или несколько frames: batch export;
+   - выбранный `Frame`, exportable component или variant component: экспортирует `.gui`;
+   - выбранный component set: экспортирует по одному `.gui` на каждый variant component;
+   - несколько sections или несколько screens/components/component sets: batch export;
    - по умолчанию plugin загружает файлы в Defigma web server по адресу `http://localhost:16830/upload`.
 
 ## Metadata Basics
@@ -483,6 +486,14 @@ Metadata template instance может задать, где находится re
 ```json
 {"need_export":false}
 ```
+
+Template `.gui` exports всегда используют пустой script path, даже если глобально включен `auto_script`.
+
+Template component sets можно экспортировать напрямую. Каждый variant component экспортируется как отдельный template `.gui`. Имена файлов variant components строятся так же, как flipbooks у atlas component sets: `<component_set_name>_<variant_suffix>` или только `<variant_suffix>`, если component set назван `_` или `-`. Template references используют то же resolved name в `path_to_screen`.
+
+Когда template instance меняет exported child nodes по сравнению с master component, Defigma записывает Defold `template_node_child` override nodes в родительский `.gui`. Существующий override transform для template root продолжает экспортироваться отдельно. Child overrides могут включать измененные transform, size, color, texture, font, line break, anchors, pivot, clipping, alpha, visibility, material и связанные поля nodes.
+
+В `_defigma.lua` родительского экрана не попадают gradient/shadow entries для нод, которые экспортируются внутри referenced template `.gui`; такие entries принадлежат самому template export.
 
 ## Practical Notes
 
