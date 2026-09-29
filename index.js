@@ -4,11 +4,40 @@ const express = require('express')
 const multer = require('multer')
 const { spawn } = require('child_process')
 
-let projectPath = process.argv[2]
+const DEFAULT_PORT = 16830
+
+// Flags may sit anywhere in argv; pm2 appends them after the positional args.
+const positionalArgs = []
+let portArg = null
+const rawArgs = process.argv.slice(2)
+for (let index = 0; index < rawArgs.length; index++) {
+	const arg = rawArgs[index]
+	if (arg === '--port' || arg === '-p') {
+		portArg = rawArgs[++index]
+		continue
+	}
+	if (arg.startsWith('--port=')) {
+		portArg = arg.slice('--port='.length)
+		continue
+	}
+	positionalArgs.push(arg)
+}
+
+const resolvePort = value => {
+	if (value === undefined || value === null || String(value).trim() === '') return null
+	const parsed = Number(String(value).trim())
+	if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+		console.error(`invalid port: ${value}`)
+		process.exit(1)
+	}
+	return parsed
+}
+
+let projectPath = positionalArgs[0]
 if (!projectPath) projectPath = process.env.PROJECT_PATH
 if (!projectPath) projectPath = process.cwd()
 
-let pythonGuiCommand = process.argv[3]
+let pythonGuiCommand = positionalArgs[1]
 if (!pythonGuiCommand) pythonGuiCommand = process.env.PYTHON_GUI_COMMAND
 if (!pythonGuiCommand) pythonGuiCommand = process.env.PYTHON_GUI_SCRIPT
 if (typeof pythonGuiCommand === 'string') pythonGuiCommand = pythonGuiCommand.trim()
@@ -26,7 +55,13 @@ if (!projectPath) {
 console.log('files will be saved in:', path.resolve(projectPath))
 
 const app = express()
-const port = 16830
+// One project per port, so several Defigma web servers can run side by side.
+// The Figma plugin picks the matching port in its global `defigma` settings node.
+const port = resolvePort(portArg)
+	?? resolvePort(positionalArgs[2])
+	?? resolvePort(process.env.DEFIGMA_PORT)
+	?? resolvePort(process.env.PORT)
+	?? DEFAULT_PORT
 
 // Add manual CORS middleware
 app.use((req, res, next) => {
@@ -46,7 +81,12 @@ app.use(express.json())
 
 // Add health check endpoint
 app.get('/health', (req, res) => {
-	res.json({ status: 'ok', timestamp: new Date().toISOString() })
+	res.json({
+		status: 'ok',
+		port: port,
+		project_path: path.resolve(projectPath),
+		timestamp: new Date().toISOString()
+	})
 })
 
 // Add root endpoint for testing
@@ -57,6 +97,8 @@ app.get('/', (req, res) => {
 				health: '/health',
 				upload: '/upload'
 			},
+			port: port,
+			project_path: path.resolve(projectPath),
 			python_gui_command: pythonGuiCommand || null,
 			gui_command_shell: guiCommandShell
 		})
@@ -184,9 +226,18 @@ app.post('/upload', upload.array('files'), async (req, res) => {
 })
 
 // Bind to all interfaces, not just localhost
-app.listen(port, '0.0.0.0', () => {
+const server = app.listen(port, '0.0.0.0', () => {
 	console.log(`server listening on all interfaces at port ${port}`)
 	console.log(`health check: http://localhost:${port}/health`)
 	console.log(`upload endpoint: http://localhost:${port}/upload`)
 	console.log('server is ready to accept connections')
+})
+
+server.on('error', error => {
+	if (error.code === 'EADDRINUSE') {
+		console.error(`port ${port} is already taken by another project`)
+		console.error('usage: node index.js <project_path> [python_gui_command] --port <port>')
+		process.exit(1)
+	}
+	throw error
 })

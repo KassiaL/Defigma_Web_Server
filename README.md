@@ -35,14 +35,24 @@ For the best experience with advanced features and post-processing capabilities:
 
    > **Note:** The second argument is optional. It specifies a command that will be executed each time after files are transferred from Figma to the web server. For example, you can use it to run a script that processes the received files.
 
+   **Launch on another port (several projects at once):**
+
+   ```bash
+   pm2 start $HOME/figma_plugins/Defigma_Web_Server/index.js --name defigma_my_project -- $PWD "$PWD/init_default_gui_script.py" --port 16831
+   ```
+
+   > **Note:** The port defaults to `16830`. It can also be given as a third positional argument or through the `DEFIGMA_PORT` / `PORT` environment variables. Give every project its own port and its own pm2 name, then point each Figma file at its port with the global settings node: `{"defigma":{"port":16831}}`. Ports outside `16830`-`16839` must be added to `allowedDomains` in the plugin `manifest.json`.
+
 3. **Create a launcher script**
 
    You can create a convenient launcher script file (e.g., `start_project.sh`) with the following content:
 
    ```bash
-   pm2 delete defigma_web_server
-   pm2 start $HOME/figma_plugins/Defigma_Web_Server/index.js --name defigma_web_server -- $PWD
+   pm2 delete defigma_my_project
+   pm2 start $HOME/figma_plugins/Defigma_Web_Server/index.js --name defigma_my_project -- $PWD --port 16831
    ```
+
+   > Use a per-project pm2 name here. A shared name makes each launcher delete the server of the project you started before it.
 
 4. In Figma, click the **"Send to Web Server"** button in the plugin interface
 5. ✅ All required files will automatically save to their designated directories
