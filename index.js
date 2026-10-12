@@ -3,6 +3,7 @@ const fs = require('fs')
 const express = require('express')
 const multer = require('multer')
 const { spawn } = require('child_process')
+const { readProjectFontMetrics } = require('./font_metrics')
 
 const DEFAULT_PORT = 16830
 
@@ -89,12 +90,23 @@ app.get('/health', (req, res) => {
 	})
 })
 
+// Vertical metrics of every font of the project, read on each request so a new font or TTF is
+// picked up without a restart (font_metrics.js).
+app.get('/font_metrics', (req, res) => {
+	try {
+		res.json(readProjectFontMetrics(projectPath))
+	} catch (error) {
+		res.status(500).json({ error: `cannot read the fonts of ${path.resolve(projectPath)}: ${error.message}` })
+	}
+})
+
 // Add root endpoint for testing
 app.get('/', (req, res) => {
 		res.json({
 			message: 'Defigma Web Server is running',
 			endpoints: {
 				health: '/health',
+				font_metrics: '/font_metrics',
 				upload: '/upload'
 			},
 			port: port,

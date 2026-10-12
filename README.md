@@ -82,6 +82,17 @@ If you prefer a simple executable file:
 3. In Figma, click the **"Send to Web Server"** button in the plugin interface
 4. ✅ All required files will automatically save to their designated directories
 
+## Endpoints
+
+- `GET /health` - status, port and project path.
+- `POST /upload` - the files of one Defigma export, written under the project path; the
+  post-processing command runs after them.
+- `GET /font_metrics` - whether the project generates glyphs at runtime (`[font]
+  runtime_generation = 1` in `game.project`) and the `hhea` ascent, descent and line gap of the TTF
+  of every `.font` in it, in fractions of the em, keyed by the `.font` name; fonts whose TTF cannot be
+  read are listed under `errors`. Read from disk on every request (`font_metrics.js`). Defigma asks
+  for it before every GUI export to place texts the way runtime generated fonts lay them out.
+
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
