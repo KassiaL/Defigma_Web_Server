@@ -47,6 +47,29 @@ const guiCommandShell = process.env.GUI_COMMAND_SHELL || 'bash'
 
 const quoteShellArg = value => `'${String(value).replace(/'/g, `'\\''`)}'`
 
+// One sync at a time: every run rewrites other .gui files of the project (hooks, enum unquoting),
+// so parallel runs overwrite each other's results.
+let guiCommandQueue = Promise.resolve()
+
+const runGuiCommand = relative_path => new Promise(resolve => {
+	const child = spawn(guiCommandShell, ['-lc', `${pythonGuiCommand} ${quoteShellArg(relative_path)}`], {
+		cwd: projectPath,
+		stdio: 'inherit'
+	})
+	child.on('error', e => {
+		console.error('failed to run python gui command for file', relative_path, e)
+		resolve()
+	})
+	child.on('exit', code => {
+		console.log('python gui command finished for file', relative_path, 'with code', code)
+		resolve()
+	})
+})
+
+const enqueueGuiCommand = relative_path => {
+	guiCommandQueue = guiCommandQueue.then(() => runGuiCommand(relative_path))
+}
+
 if (!projectPath) {
 	return
 	console.error('project path is not specified')
@@ -200,18 +223,7 @@ app.post('/upload', upload.array('files'), async (req, res) => {
 
 		if (pythonGuiCommand && saved_command_files.length > 0) {
 			for (const command_file of saved_command_files) {
-				const full_path = command_file.full_path
-				const relative_path = path.relative(projectPath, full_path)
-				const child = spawn(guiCommandShell, ['-lc', `${pythonGuiCommand} ${quoteShellArg(relative_path)}`], {
-					cwd: projectPath,
-					stdio: 'inherit'
-				})
-				child.on('error', e => {
-					console.error('failed to run python gui command for file', relative_path, e)
-				})
-				child.on('exit', code => {
-					console.log('python gui command finished for file', relative_path, 'with code', code)
-				})
+				enqueueGuiCommand(path.relative(projectPath, command_file.full_path))
 			}
 		} else if (!pythonGuiCommand && saved_command_files.length > 0) {
 			console.warn('PYTHON_GUI_COMMAND not set; skipping processing for uploaded .gui and .atlas files')
