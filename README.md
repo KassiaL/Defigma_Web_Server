@@ -91,7 +91,8 @@ If you prefer a simple executable file:
   runtime_generation = 1` in `game.project`) and the `hhea` ascent, descent and line gap of the TTF
   of every `.font` in it, in fractions of the em, keyed by the `.font` name; fonts whose TTF cannot be
   read are listed under `errors`. Read from disk on every request (`font_metrics.js`). Defigma asks
-  for it before every GUI export to place texts the way runtime generated fonts lay them out.
+  for it before every GUI export to place texts the way Defold 1.14.0 lays them out (runtime
+  generated and bob compiled fonts alike; it no longer reads `runtime_generation`).
 
 ## 📝 License
 
